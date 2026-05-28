@@ -36,20 +36,21 @@
             align-items: center;
             height: 100vh;
             width: 100vw;
-            overflow: hidden;
+            overflow: hidden; /* Evita scroll en la pantalla principal */
         }
 
         .console-container {
             width: 94%;
             max-width: 1280px;
             height: 88vh;
+            max-height: 88vh; /* Límite estricto de altura */
             background-color: var(--bg-panel);
             border: 1px solid var(--border-subtle);
             border-radius: 16px;
             display: grid;
             grid-template-columns: 340px 1fr;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            overflow: hidden;
+            overflow: hidden; /* Corta cualquier desbordamiento rebelde */
         }
 
         /* PANEL IZQUIERDO: Configuración y Telemetría */
@@ -60,6 +61,7 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            min-height: 0; /* Permite contener elementos sin empujar el Grid */
         }
 
         .brand-section h2 {
@@ -91,6 +93,7 @@
             gap: 1.5rem;
             flex-grow: 1;
             margin-top: 1rem;
+            min-height: 0;
         }
 
         .control-block label {
@@ -122,7 +125,6 @@
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
         }
 
-        /* Telemetría de Estado de Voz */
         .telemetry-card {
             background-color: rgba(20, 28, 47, 0.5);
             border: 1px solid var(--border-subtle);
@@ -176,18 +178,22 @@
             animation: pulse 1.8s infinite linear;
         }
 
-        /* PANEL DERECHO: Lienzo de Conversación Principal */
+        /* PANEL DERECHO: Ajustado para contener desbordamientos */
         .main-chat-panel {
             display: flex;
             flex-direction: column;
             height: 100%;
+            min-height: 0; /* Obliga a los hijos flex a respetar los límites del padre */
+            overflow: hidden;
             background-color: rgba(13, 19, 32, 0.2);
         }
 
+        /* Contenedor del Chat: Aquí es donde ocurre la magia del scroll */
         .chat-body {
             flex: 1;
             padding: 2rem;
-            overflow-y: auto;
+            overflow-y: auto; /* Scroll vertical nativo e interno */
+            min-height: 0;    /* Evita que se estire al recibir textos largos */
             display: flex;
             flex-direction: column;
             gap: 1.5rem;
@@ -206,13 +212,14 @@
         }
 
         .bubble {
-            max-width: 70%;
+            max-width: 85%; /* Un poco más ancho para aprovechar las respuestas estructuradas */
             padding: 16px 20px;
             border-radius: 12px;
             font-size: 0.95rem;
             line-height: 1.6;
             letter-spacing: 0.1px;
             word-wrap: break-word;
+            white-space: pre-wrap; /* Mantiene saltos de línea y formateos limpios de n8n */
             box-sizing: border-box;
             animation: buildUp 0.25s cubic-bezier(0.215, 0.610, 0.355, 1);
         }
@@ -233,11 +240,12 @@
             border-bottom-left-radius: 2px;
         }
 
-        /* Barra de Entrada Inferior */
+        /* Barra de Entrada Inferior: Blindada para que NUNCA se encoja o desaparezca */
         .chat-footer {
             padding: 1.5rem 2rem 2rem 2rem;
             background-color: var(--bg-panel);
             border-top: 1px solid var(--border-subtle);
+            flex-shrink: 0; /* Crucial: impide que el bloque se reduzca o se desplace hacia abajo */
         }
 
         .input-row {
@@ -302,7 +310,7 @@
         <div class="sidebar-panel">
             <div class="brand-section">
                 <h2>Control Console</h2>
-                <p>Environment v2.3 // Operational</p>
+                <p>Environment v2.5 // Bound Stream</p>
                 <div class="meta-divider"></div>
             </div>
 
@@ -310,7 +318,7 @@
                 <div class="control-block">
                     <label>Target Endpoint</label>
                     <div class="config-bar">
-                        <input type="text" id="webhookUrl" placeholder="https://tu-instancia.n8n.cloud/...">
+                        <input type="text" id="webhookUrl" placeholder="https://tu-instancia.n8n.cloud/... " value="http://localhost:5678/webhook-test/...">
                     </div>
                 </div>
 
@@ -328,7 +336,7 @@
 
         <div class="main-chat-panel">
             <div class="chat-body" id="chatBody">
-                <div class="bubble ai">👋 Consola inicializada. Haz clic en el micrófono del panel izquierdo para hablar; el sistema procesará y enviará tu comando de voz automáticamente al terminar.</div>
+                <div class="bubble ai">🤖 Layout corregido. Las respuestas kilométricas de n8n ahora activarán la barra de desplazamiento lateral interna automáticamente. La caja de texto y el botón de enviar se mantendrán fijos abajo sin importar el volumen de datos.</div>
             </div>
 
             <div class="chat-footer">
@@ -343,171 +351,144 @@
     <audio id="audioOut" hidden></audio>
 
     <script>
-       const webhookInput = document.getElementById('webhookUrl');
-const chatBody = document.getElementById('chatBody');
-const textInput = document.getElementById('textInput');
-const sendBtn = document.getElementById('sendBtn');
-const micBtn = document.getElementById('micBtn');
-const statusLabel = document.getElementById('statusLabel');
-const audioOut = document.getElementById('audioOut');
+        const webhookInput = document.getElementById('webhookUrl');
+        const chatBody = document.getElementById('chatBody');
+        const textInput = document.getElementById('textInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const micBtn = document.getElementById('micBtn');
+        const statusLabel = document.getElementById('statusLabel');
+        const audioOut = document.getElementById('audioOut');
 
-let isProcessing = false;
+        async function procesarMensaje(mensaje) {
+            if (!mensaje.trim()) return;
+            const webhookUrl = webhookInput.value.trim();
+            
+            if (!webhookUrl) {
+                alert("Por favor, ingresa la URL de tu Webhook en la parte superior del panel izquierdo.");
+                return;
+            }
 
-async function procesarMensaje(mensaje) {
-    if (!mensaje.trim()) return;
-    const webhookUrl = webhookInput.value.trim();
-    
-    if (!webhookUrl) {
-        alert("Por favor, ingresa la URL de tu Webhook en la parte superior del panel izquierdo.");
-        return;
-    }
+            appendBubble(mensaje, 'user');
+            statusLabel.textContent = "Procesando...";
 
-    appendBubble(mensaje, 'user');
-    statusLabel.textContent = "Procesando...";
+            try {
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mensaje: mensaje })
+                });
 
-    try {
-        const response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mensaje: mensaje })
+                if (response.ok) {
+                    const data = await response.json(); 
+
+                    if (data.respuestaTexto) {
+                        appendBubble(data.respuestaTexto, 'ai');
+                    }
+
+                    if (data.audio) {
+                        audioOut.src = "data:audio/mpeg;base64," + data.audio;
+                        audioOut.play().catch(e => console.error("Error al reproducir audio:", e));
+                    }
+                    
+                    statusLabel.textContent = "STANDBY";
+                } else {
+                    appendBubble("❌ Error en el servidor de automatización.", 'ai');
+                    statusLabel.textContent = "ERROR SERVIDOR";
+                }
+            } catch (error) {
+                appendBubble("❌ Error de conexión con el Webhook.", 'ai');
+                statusLabel.textContent = "ERROR RED";
+                console.error(error);
+            }
+        }
+
+        sendBtn.addEventListener('click', () => {
+            procesarMensaje(textInput.value);
+            textInput.value = '';
         });
 
-        if (response.ok) {
-            const data = await response.json(); 
-
-            if (data.respuestaTexto) {
-                appendBubble(data.respuestaTexto, 'ai');
+        textInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                procesarMensaje(textInput.value);
+                textInput.value = '';
             }
+        });
 
-            if (data.audio) {
-                audioOut.src = "data:audio/mpeg;base64," + data.audio;
-                audioOut.play().catch(e => console.error("Error al reproducir audio:", e));
-            }
-            
-            statusLabel.textContent = "STANDBY";
+        // --- MOTOR DE VOZ ULTRA-ESTABLE ---
+        const SpeechSetup = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!SpeechSetup) {
+            statusLabel.textContent = "SISTEMA NO SOPORTADO";
         } else {
-            appendBubble("❌ Error en el servidor de automatización.", 'ai');
-            statusLabel.textContent = "ERROR SERVIDOR";
-        }
-    } catch (error) {
-        appendBubble("❌ Error de conexión con el Webhook.", 'ai');
-        statusLabel.textContent = "ERROR RED";
-        console.error(error);
-    }
-}
+            const recognition = new SpeechSetup();
+            recognition.lang = 'es-CO'; 
+            recognition.continuous = false; 
+            recognition.interimResults = false; 
 
-sendBtn.addEventListener('click', () => {
-    procesarMensaje(textInput.value);
-    textInput.value = '';
-});
+            let isListening = false; 
 
-textInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        procesarMensaje(textInput.value);
-        textInput.value = '';
-    }
-});
-
-// --- SISTEMA DE AUDIO BLINDADO CONTRA DOBLE CLIC ---
-const SpeechSetup = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-if (!SpeechSetup) {
-    statusLabel.textContent = "SISTEMA NO SOPORTADO";
-} else {
-    const recognition = new SpeechSetup();
-    recognition.lang = 'es-CO'; 
-    recognition.continuous = false; 
-    recognition.interimResults = false; 
-
-    // Bandera de control interna para evitar llamadas duplicadas
-    let isMicActive = false; 
-
-    micBtn.addEventListener('click', async () => {
-        // Bloquear interacciones si está en proceso de verificación intermedia
-        if (statusLabel.textContent === "VERIFICANDO MIC...") return;
-
-        if (isMicActive) {
-            recognition.stop();
-        } else {
-            try {
-                statusLabel.textContent = "VERIFICANDO MIC...";
-                
-                // Validación rápida de hardware nativo
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(track => track.stop());
-
-                isProcessing = false;
-                
-                // Activamos el reconocimiento solo si la bandera sigue abajo
-                if (!isMicActive) {
-                    recognition.start();
-                    isMicActive = true; 
-                }
-            } catch (e) {
-                isMicActive = false;
-                console.error("Error al solicitar hardware:", e);
-                
-                if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-                    statusLabel.textContent = "PERMISO DENEGADO";
-                    alert("Acceso al micrófono bloqueado. Haz clic en el candado de la URL y cambia el permiso a 'Permitir'.");
-                } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
-                    statusLabel.textContent = "MIC NO DETECTADO";
-                    alert("No se detectó ningún micrófono físico activo.");
+            micBtn.addEventListener('click', () => {
+                if (isListening) {
+                    recognition.stop();
                 } else {
-                    statusLabel.textContent = "ERROR HARDWARE";
-                    alert(`Error de hardware: ${e.message}`);
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.error("Error al arrancar reconocimiento:", e);
+                    }
                 }
-            }
+            });
+
+            recognition.onstart = () => {
+                isListening = true;
+                micBtn.classList.add('listening');
+                statusLabel.textContent = "ESCUCHANDO...";
+                textInput.placeholder = "Habla ahora, te estoy escuchando...";
+            };
+
+            recognition.onresult = (event) => {
+                const textoEscuchado = event.results[0][0].transcript;
+                
+                if (textoEscuchado.trim()) {
+                    textInput.value = textoEscuchado;
+                    procesarMensaje(textoEscuchado);
+                    textInput.value = '';
+                }
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                micBtn.classList.remove('listening');
+                textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
+                if (statusLabel.textContent === "ESCUCHANDO...") {
+                    statusLabel.textContent = "STANDBY";
+                }
+            };
+
+            recognition.onerror = (event) => {
+                isListening = false;
+                micBtn.classList.remove('listening');
+                textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
+                
+                if (event.error === 'not-allowed') {
+                    statusLabel.textContent = "PERMISO DENEGADO";
+                    alert("Acceso al micrófono denegado. Por favor, haz clic en el candado al lado de la URL y actívalo.");
+                } else if (event.error === 'no-speech') {
+                    statusLabel.textContent = "STANDBY";
+                } else {
+                    statusLabel.textContent = "ERROR MIC";
+                    console.error("Speech Recognition Error Técnico:", event.error);
+                }
+            };
         }
-    });
 
-    recognition.onstart = () => {
-        micBtn.classList.add('listening');
-        statusLabel.textContent = "ESCUCHANDO...";
-        textInput.placeholder = "Escuchando tu voz activamente...";
-    };
-
-    recognition.onresult = (event) => {
-        if (isProcessing) return;
-        isProcessing = true;
-        
-        const textoEscuchado = event.results[0][0].transcript;
-        textInput.value = textoEscuchado; 
-        procesarMensaje(textoEscuchado);
-        textInput.value = '';
-    };
-
-    recognition.onend = () => {
-        micBtn.classList.remove('listening');
-        isMicActive = false; // Liberamos el estado obligatoriamente aquí
-        textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
-        if (statusLabel.textContent === "ESCUCHANDO..." || statusLabel.textContent === "VERIFICANDO MIC...") {
-            statusLabel.textContent = "STANDBY";
+        function appendBubble(text, sender) {
+            const bubble = document.createElement('div');
+            bubble.classList.add('bubble', sender);
+            bubble.textContent = text;
+            chatBody.appendChild(bubble);
+            chatBody.scrollTop = chatBody.scrollHeight; // Auto-scroll al fondo al recibir mensajes
         }
-    };
-
-    recognition.onerror = (event) => {
-        micBtn.classList.remove('listening');
-        isMicActive = false; 
-        textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
-        
-        // Evitamos lanzar alertas molestas si el error es solo que no detectó sonido (no-speech)
-        if (event.error !== 'no-speech') {
-            statusLabel.textContent = "ERROR MIC";
-            console.error("Speech Recognition Error:", event.error);
-        } else {
-            statusLabel.textContent = "STANDBY";
-        }
-    };
-}
-
-function appendBubble(text, sender) {
-    const bubble = document.createElement('div');
-    bubble.classList.add('bubble', sender);
-    bubble.textContent = text;
-    chatBody.appendChild(bubble);
-    chatBody.scrollTop = chatBody.scrollHeight;
-}
     </script>
 </body>
 </html>
