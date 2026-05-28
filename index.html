@@ -36,24 +36,24 @@
             align-items: center;
             height: 100vh;
             width: 100vw;
-            overflow: hidden; /* Evita scroll en la pantalla principal */
+            overflow: hidden; 
         }
 
         .console-container {
             width: 94%;
             max-width: 1280px;
             height: 88vh;
-            max-height: 88vh; /* Límite estricto de altura */
+            max-height: 88vh; 
             background-color: var(--bg-panel);
             border: 1px solid var(--border-subtle);
             border-radius: 16px;
             display: grid;
             grid-template-columns: 340px 1fr;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            overflow: hidden; /* Corta cualquier desbordamiento rebelde */
+            overflow: hidden; 
         }
 
-        /* PANEL IZQUIERDO: Configuración y Telemetría */
+        /* PANEL IZQUIERDO */
         .sidebar-panel {
             background-color: rgba(10, 15, 26, 0.4);
             border-right: 1px solid var(--border-subtle);
@@ -61,7 +61,7 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            min-height: 0; /* Permite contener elementos sin empujar el Grid */
+            min-height: 0; 
         }
 
         .brand-section h2 {
@@ -164,10 +164,16 @@
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .mic-button:hover {
+        .mic-button:hover:not(:disabled) {
             background-color: rgba(255, 255, 255, 0.05);
             border-color: rgba(255, 255, 255, 0.15);
             transform: translateY(-1px);
+        }
+
+        .mic-button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            filter: grayscale(100%);
         }
 
         .mic-button.listening {
@@ -178,22 +184,21 @@
             animation: pulse 1.8s infinite linear;
         }
 
-        /* PANEL DERECHO: Ajustado para contener desbordamientos */
+        /* PANEL DERECHO */
         .main-chat-panel {
             display: flex;
             flex-direction: column;
             height: 100%;
-            min-height: 0; /* Obliga a los hijos flex a respetar los límites del padre */
+            min-height: 0; 
             overflow: hidden;
             background-color: rgba(13, 19, 32, 0.2);
         }
 
-        /* Contenedor del Chat: Aquí es donde ocurre la magia del scroll */
         .chat-body {
             flex: 1;
             padding: 2rem;
-            overflow-y: auto; /* Scroll vertical nativo e interno */
-            min-height: 0;    /* Evita que se estire al recibir textos largos */
+            overflow-y: auto; 
+            min-height: 0;    
             display: flex;
             flex-direction: column;
             gap: 1.5rem;
@@ -212,14 +217,14 @@
         }
 
         .bubble {
-            max-width: 85%; /* Un poco más ancho para aprovechar las respuestas estructuradas */
+            max-width: 85%; 
             padding: 16px 20px;
             border-radius: 12px;
             font-size: 0.95rem;
             line-height: 1.6;
             letter-spacing: 0.1px;
             word-wrap: break-word;
-            white-space: pre-wrap; /* Mantiene saltos de línea y formateos limpios de n8n */
+            white-space: pre-wrap; 
             box-sizing: border-box;
             animation: buildUp 0.25s cubic-bezier(0.215, 0.610, 0.355, 1);
         }
@@ -240,12 +245,12 @@
             border-bottom-left-radius: 2px;
         }
 
-        /* Barra de Entrada Inferior: Blindada para que NUNCA se encoja o desaparezca */
+        /* BARRA INFERIOR DE CONTROLES */
         .chat-footer {
             padding: 1.5rem 2rem 2rem 2rem;
             background-color: var(--bg-panel);
             border-top: 1px solid var(--border-subtle);
-            flex-shrink: 0; /* Crucial: impide que el bloque se reduzca o se desplace hacia abajo */
+            flex-shrink: 0; 
         }
 
         .input-row {
@@ -267,9 +272,15 @@
             transition: all 0.2s;
         }
 
-        .chat-input:focus {
+        .chat-input:focus:not(:disabled) {
             border-color: var(--border-focus);
             box-shadow: 0 0 0 1px var(--border-focus);
+        }
+
+        .chat-input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: rgba(0, 0, 0, 0.2);
         }
 
         .send-button {
@@ -287,9 +298,37 @@
             transition: all 0.2s ease;
         }
 
-        .send-button:hover {
+        .send-button:hover:not(:disabled) {
             background-color: #1d4ed8;
             transform: translateY(-1px);
+        }
+
+        .send-button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* NUEVO BOTÓN DE STOP */
+        .stop-button {
+            background-color: var(--neon-alert);
+            color: white;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: none; /* Oculto por defecto */
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+        }
+
+        .stop-button:hover {
+            background-color: #dc2626;
+            transform: translateY(-1px);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
         }
 
         @keyframes pulse {
@@ -310,7 +349,7 @@
         <div class="sidebar-panel">
             <div class="brand-section">
                 <h2>Control Console</h2>
-                <p>Environment v2.5 // Bound Stream</p>
+                <p>Environment v2.6 // Sync Mode</p>
                 <div class="meta-divider"></div>
             </div>
 
@@ -318,7 +357,7 @@
                 <div class="control-block">
                     <label>Target Endpoint</label>
                     <div class="config-bar">
-                        <input type="text" id="webhookUrl" placeholder="https://tu-instancia.n8n.cloud/... " value="http://localhost:5678/webhook-test/...">
+                        <input type="text" id="webhookUrl" placeholder="https://tu-instancia.n8n.cloud/..." value="http://localhost:5678/webhook-test/...">
                     </div>
                 </div>
 
@@ -336,13 +375,14 @@
 
         <div class="main-chat-panel">
             <div class="chat-body" id="chatBody">
-                <div class="bubble ai">🤖 Layout corregido. Las respuestas kilométricas de n8n ahora activarán la barra de desplazamiento lateral interna automáticamente. La caja de texto y el botón de enviar se mantendrán fijos abajo sin importar el volumen de datos.</div>
+                <div class="bubble ai">🛡️ Modo síncrono activado. Mientras esté hablando, la consola de texto se bloqueará temporalmente. Usa el botón rojo de detener (⏹) si necesitas interrumpirme para enviar un nuevo comando de inmediato.</div>
             </div>
 
             <div class="chat-footer">
                 <div class="input-row">
                     <input type="text" id="textInput" class="chat-input" placeholder="Ingrese una línea de comando o consulta de datos...">
                     <button id="sendBtn" class="send-button">➤</button>
+                    <button id="stopBtn" class="stop-button">⏹</button>
                 </div>
             </div>
         </div>
@@ -355,9 +395,31 @@
         const chatBody = document.getElementById('chatBody');
         const textInput = document.getElementById('textInput');
         const sendBtn = document.getElementById('sendBtn');
+        const stopBtn = document.getElementById('stopBtn');
         const micBtn = document.getElementById('micBtn');
         const statusLabel = document.getElementById('statusLabel');
         const audioOut = document.getElementById('audioOut');
+
+        // Función para restaurar la interfaz a su estado normal
+        function desbloquearInterfaz() {
+            textInput.disabled = false;
+            sendBtn.disabled = false;
+            micBtn.disabled = false;
+            textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
+            sendBtn.style.display = 'flex';
+            stopBtn.style.display = 'none';
+            statusLabel.textContent = "STANDBY";
+            textInput.focus();
+        }
+
+        // Función para bloquear mientras procesa la petición de n8n
+        function bloquearParaProcesar() {
+            textInput.disabled = true;
+            sendBtn.disabled = true;
+            micBtn.disabled = true;
+            textInput.placeholder = "Procesando datos en el servidor...";
+            statusLabel.textContent = "PROCESANDO...";
+        }
 
         async function procesarMensaje(mensaje) {
             if (!mensaje.trim()) return;
@@ -369,7 +431,7 @@
             }
 
             appendBubble(mensaje, 'user');
-            statusLabel.textContent = "Procesando...";
+            bloquearParaProcesar();
 
             try {
                 const response = await fetch(webhookUrl, {
@@ -387,18 +449,24 @@
 
                     if (data.audio) {
                         audioOut.src = "data:audio/mpeg;base64," + data.audio;
-                        audioOut.play().catch(e => console.error("Error al reproducir audio:", e));
+                        audioOut.play().catch(e => {
+                            console.error("Error al reproducir audio:", e);
+                            desbloquearInterfaz(); // Desbloquea si falla el play
+                        });
+                        // Nota: El evento 'play' del audio se encarga de cambiar el estado visual
+                    } else {
+                        // Si n8n solo devuelve texto sin audio, liberamos de inmediato
+                        desbloquearInterfaz();
                     }
                     
-                    statusLabel.textContent = "STANDBY";
                 } else {
                     appendBubble("❌ Error en el servidor de automatización.", 'ai');
-                    statusLabel.textContent = "ERROR SERVIDOR";
+                    desbloquearInterfaz();
                 }
             } catch (error) {
                 appendBubble("❌ Error de conexión con el Webhook.", 'ai');
-                statusLabel.textContent = "ERROR RED";
                 console.error(error);
+                desbloquearInterfaz();
             }
         }
 
@@ -408,13 +476,47 @@
         });
 
         textInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !textInput.disabled) {
                 procesarMensaje(textInput.value);
                 textInput.value = '';
             }
         });
 
-        // --- MOTOR DE VOZ ULTRA-ESTABLE ---
+        // --- CONTROL DE AUDIO Y BOTÓN STOP ---
+
+        // Cuando el audio arranca, bloquea todo y muestra el botón de Stop
+        audioOut.addEventListener('play', () => {
+            textInput.disabled = true;
+            micBtn.disabled = true;
+            textInput.placeholder = "🔊 IA hablando... Presiona detener (⏹) para interrumpir.";
+            sendBtn.style.display = 'none';
+            stopBtn.style.display = 'flex';
+            statusLabel.textContent = "REPRODUCIENDO...";
+        });
+
+        // Cuando el audio termina naturalmente, libera la interfaz
+        audioOut.addEventListener('ended', () => {
+            desbloquearInterfaz();
+        });
+
+        // Acción de matar el audio manualmente
+        stopBtn.addEventListener('click', () => {
+            audioOut.pause();
+            audioOut.currentTime = 0; // Reinicia el audio a 0
+            desbloquearInterfaz();
+            
+            // Opcional: Feedback visual de que lo paraste
+            const bubble = document.createElement('div');
+            bubble.style.textAlign = 'center';
+            bubble.style.color = 'var(--text-muted)';
+            bubble.style.fontSize = '0.75rem';
+            bubble.style.margin = '10px 0';
+            bubble.textContent = "— Reproducción interrumpida —";
+            chatBody.appendChild(bubble);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        });
+
+        // --- MOTOR DE VOZ ---
         const SpeechSetup = window.SpeechRecognition || window.webkitSpeechRecognition;
         
         if (!SpeechSetup) {
@@ -428,6 +530,8 @@
             let isListening = false; 
 
             micBtn.addEventListener('click', () => {
+                if (micBtn.disabled) return;
+                
                 if (isListening) {
                     recognition.stop();
                 } else {
@@ -459,25 +563,26 @@
             recognition.onend = () => {
                 isListening = false;
                 micBtn.classList.remove('listening');
-                textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
+                
+                // Solo restaurar el placeholder si no estamos esperando a n8n
                 if (statusLabel.textContent === "ESCUCHANDO...") {
-                    statusLabel.textContent = "STANDBY";
+                    desbloquearInterfaz();
                 }
             };
 
             recognition.onerror = (event) => {
                 isListening = false;
                 micBtn.classList.remove('listening');
-                textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
                 
                 if (event.error === 'not-allowed') {
                     statusLabel.textContent = "PERMISO DENEGADO";
                     alert("Acceso al micrófono denegado. Por favor, haz clic en el candado al lado de la URL y actívalo.");
+                    desbloquearInterfaz();
                 } else if (event.error === 'no-speech') {
-                    statusLabel.textContent = "STANDBY";
+                    desbloquearInterfaz();
                 } else {
-                    statusLabel.textContent = "ERROR MIC";
                     console.error("Speech Recognition Error Técnico:", event.error);
+                    desbloquearInterfaz();
                 }
             };
         }
@@ -487,7 +592,7 @@
             bubble.classList.add('bubble', sender);
             bubble.textContent = text;
             chatBody.appendChild(bubble);
-            chatBody.scrollTop = chatBody.scrollHeight; // Auto-scroll al fondo al recibir mensajes
+            chatBody.scrollTop = chatBody.scrollHeight; 
         }
     </script>
 </body>
