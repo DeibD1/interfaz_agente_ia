@@ -343,111 +343,119 @@
     <audio id="audioOut" hidden></audio>
 
     <script>
-        const webhookInput = document.getElementById('webhookUrl');
-        const chatBody = document.getElementById('chatBody');
-        const textInput = document.getElementById('textInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const micBtn = document.getElementById('micBtn');
-        const statusLabel = document.getElementById('statusLabel');
-        const audioOut = document.getElementById('audioOut');
+       const webhookInput = document.getElementById('webhookUrl');
+const chatBody = document.getElementById('chatBody');
+const textInput = document.getElementById('textInput');
+const sendBtn = document.getElementById('sendBtn');
+const micBtn = document.getElementById('micBtn');
+const statusLabel = document.getElementById('statusLabel');
+const audioOut = document.getElementById('audioOut');
 
-        let isProcessing = false;
+let isProcessing = false;
 
-        async function procesarMensaje(mensaje) {
-            if (!mensaje.trim()) return;
-            const webhookUrl = webhookInput.value.trim();
+async function procesarMensaje(mensaje) {
+    if (!mensaje.trim()) return;
+    const webhookUrl = webhookInput.value.trim();
+    
+    if (!webhookUrl) {
+        alert("Por favor, ingresa la URL de tu Webhook en la parte superior del panel izquierdo.");
+        return;
+    }
+
+    appendBubble(mensaje, 'user');
+    statusLabel.textContent = "Procesando...";
+
+    try {
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mensaje: mensaje })
+        });
+
+        if (response.ok) {
+            const data = await response.json(); 
+
+            if (data.respuestaTexto) {
+                appendBubble(data.respuestaTexto, 'ai');
+            }
+
+            if (data.audio) {
+                audioOut.src = "data:audio/mpeg;base64," + data.audio;
+                audioOut.play().catch(e => console.error("Error al reproducir audio:", e));
+            }
             
-            if (!webhookUrl) {
-                alert("Por favor, ingresa la URL de tu Webhook en la parte superior del panel izquierdo.");
-                return;
-            }
-
-            appendBubble(mensaje, 'user');
-            statusLabel.textContent = "Procesando...";
-
-            try {
-                const response = await fetch(webhookUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ mensaje: mensaje })
-                });
-
-                if (response.ok) {
-                    const data = await response.json(); 
-
-                    if (data.respuestaTexto) {
-                        appendBubble(data.respuestaTexto, 'ai');
-                    }
-
-                    if (data.audio) {
-                        audioOut.src = "data:audio/mpeg;base64," + data.audio;
-                        audioOut.play().catch(e => console.error("Error al reproducir audio:", e));
-                    }
-                    
-                    statusLabel.textContent = "STANDBY";
-                } else {
-                    appendBubble("❌ Error en el servidor de automatización.", 'ai');
-                    statusLabel.textContent = "ERROR SERVIDOR";
-                }
-            } catch (error) {
-                appendBubble("❌ Error de conexión con el Webhook.", 'ai');
-                statusLabel.textContent = "ERROR RED";
-                console.error(error);
-            }
+            statusLabel.textContent = "STANDBY";
+        } else {
+            appendBubble("❌ Error en el servidor de automatización.", 'ai');
+            statusLabel.textContent = "ERROR SERVIDOR";
         }
+    } catch (error) {
+        appendBubble("❌ Error de conexión con el Webhook.", 'ai');
+        statusLabel.textContent = "ERROR RED";
+        console.error(error);
+    }
+}
 
-        sendBtn.addEventListener('click', () => {
-            procesarMensaje(textInput.value);
-            textInput.value = '';
-        });
+sendBtn.addEventListener('click', () => {
+    procesarMensaje(textInput.value);
+    textInput.value = '';
+});
 
-        textInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                procesarMensaje(textInput.value);
-                textInput.value = '';
-            }
-        });
+textInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        procesarMensaje(textInput.value);
+        textInput.value = '';
+    }
+});
 
-        // --- SISTEMA DE DETECCIÓN CON MENÚ DE PERMISOS MEJORADO ---
+// --- SISTEMA DE AUDIO BLINDADO CONTRA DOBLE CLIC ---
 const SpeechSetup = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 if (!SpeechSetup) {
     statusLabel.textContent = "SISTEMA NO SOPORTADO";
-    console.warn("Este navegador no soporta la API de Reconocimiento de Voz.");
 } else {
     const recognition = new SpeechSetup();
     recognition.lang = 'es-CO'; 
     recognition.continuous = false; 
     recognition.interimResults = false; 
 
+    // Bandera de control interna para evitar llamadas duplicadas
+    let isMicActive = false; 
+
     micBtn.addEventListener('click', async () => {
-        if (micBtn.classList.contains('listening')) {
+        // Bloquear interacciones si está en proceso de verificación intermedia
+        if (statusLabel.textContent === "VERIFICANDO MIC...") return;
+
+        if (isMicActive) {
             recognition.stop();
         } else {
             try {
                 statusLabel.textContent = "VERIFICANDO MIC...";
                 
-                // Forzar la solicitud de hardware nativa
+                // Validación rápida de hardware nativo
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                // Si el usuario acepta, liberamos el canal para el motor de dictado
                 stream.getTracks().forEach(track => track.stop());
 
                 isProcessing = false;
-                recognition.start();
+                
+                // Activamos el reconocimiento solo si la bandera sigue abajo
+                if (!isMicActive) {
+                    recognition.start();
+                    isMicActive = true; 
+                }
             } catch (e) {
+                isMicActive = false;
                 console.error("Error al solicitar hardware:", e);
                 
-                // Diagnóstico preciso del problema
                 if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
                     statusLabel.textContent = "PERMISO DENEGADO";
-                    alert("El acceso al micrófono está bloqueado en este navegador. Haz clic en el icono del candado al lado de la URL y cambia el permiso a 'Permitir'.");
+                    alert("Acceso al micrófono bloqueado. Haz clic en el candado de la URL y cambia el permiso a 'Permitir'.");
                 } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
                     statusLabel.textContent = "MIC NO DETECTADO";
-                    alert("No se encontró ningún micrófono físico conectado o activo en tu dispositivo.");
+                    alert("No se detectó ningún micrófono físico activo.");
                 } else {
                     statusLabel.textContent = "ERROR HARDWARE";
-                    alert(`Error de hardware inesperado: ${e.message}`);
+                    alert(`Error de hardware: ${e.message}`);
                 }
             }
         }
@@ -463,9 +471,7 @@ if (!SpeechSetup) {
         if (isProcessing) return;
         isProcessing = true;
         
-        micBtn.classList.remove('listening');
         const textoEscuchado = event.results[0][0].transcript;
-        
         textInput.value = textoEscuchado; 
         procesarMensaje(textoEscuchado);
         textInput.value = '';
@@ -473,27 +479,35 @@ if (!SpeechSetup) {
 
     recognition.onend = () => {
         micBtn.classList.remove('listening');
+        isMicActive = false; // Liberamos el estado obligatoriamente aquí
         textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
-        if (statusLabel.textContent === "ESCUCHANDO...") {
+        if (statusLabel.textContent === "ESCUCHANDO..." || statusLabel.textContent === "VERIFICANDO MIC...") {
             statusLabel.textContent = "STANDBY";
         }
     };
 
     recognition.onerror = (event) => {
         micBtn.classList.remove('listening');
+        isMicActive = false; 
         textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
-        statusLabel.textContent = "ERROR MIC";
-        console.error("Speech Recognition Error:", event.error);
+        
+        // Evitamos lanzar alertas molestas si el error es solo que no detectó sonido (no-speech)
+        if (event.error !== 'no-speech') {
+            statusLabel.textContent = "ERROR MIC";
+            console.error("Speech Recognition Error:", event.error);
+        } else {
+            statusLabel.textContent = "STANDBY";
+        }
     };
 }
 
-        function appendBubble(text, sender) {
-            const bubble = document.createElement('div');
-            bubble.classList.add('bubble', sender);
-            bubble.textContent = text;
-            chatBody.appendChild(bubble);
-            chatBody.scrollTop = chatBody.scrollHeight;
-        }
+function appendBubble(text, sender) {
+    const bubble = document.createElement('div');
+    bubble.classList.add('bubble', sender);
+    bubble.textContent = text;
+    chatBody.appendChild(bubble);
+    chatBody.scrollTop = chatBody.scrollHeight;
+}
     </script>
 </body>
 </html>
