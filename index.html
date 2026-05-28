@@ -408,75 +408,84 @@
             }
         });
 
-        // --- SISTEMA DE DETECCIÓN CON MENÚ DE PERMISOS FORZADO ---
-        const SpeechSetup = window.SpeechRecognition || window.webkitSpeechRecognition;
-        
-        if (!SpeechSetup) {
-            statusLabel.textContent = "SISTEMA NO SOPORTADO";
-            console.warn("Este navegador no soporta la API de Reconocimiento de Voz.");
+        // --- SISTEMA DE DETECCIÓN CON MENÚ DE PERMISOS MEJORADO ---
+const SpeechSetup = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if (!SpeechSetup) {
+    statusLabel.textContent = "SISTEMA NO SOPORTADO";
+    console.warn("Este navegador no soporta la API de Reconocimiento de Voz.");
+} else {
+    const recognition = new SpeechSetup();
+    recognition.lang = 'es-CO'; 
+    recognition.continuous = false; 
+    recognition.interimResults = false; 
+
+    micBtn.addEventListener('click', async () => {
+        if (micBtn.classList.contains('listening')) {
+            recognition.stop();
         } else {
-            const recognition = new SpeechSetup();
-            recognition.lang = 'es-CO'; 
-            recognition.continuous = false; 
-            recognition.interimResults = false; 
+            try {
+                statusLabel.textContent = "VERIFICANDO MIC...";
+                
+                // Forzar la solicitud de hardware nativa
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Si el usuario acepta, liberamos el canal para el motor de dictado
+                stream.getTracks().forEach(track => track.stop());
 
-            // AL HACER CLIC FORZAMOS LA CONFIRMACIÓN DE HARDWARE DEL NAVEGADOR
-            micBtn.addEventListener('click', async () => {
-                if (micBtn.classList.contains('listening')) {
-                    recognition.stop();
+                isProcessing = false;
+                recognition.start();
+            } catch (e) {
+                console.error("Error al solicitar hardware:", e);
+                
+                // Diagnóstico preciso del problema
+                if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+                    statusLabel.textContent = "PERMISO DENEGADO";
+                    alert("El acceso al micrófono está bloqueado en este navegador. Haz clic en el icono del candado al lado de la URL y cambia el permiso a 'Permitir'.");
+                } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+                    statusLabel.textContent = "MIC NO DETECTADO";
+                    alert("No se encontró ningún micrófono físico conectado o activo en tu dispositivo.");
                 } else {
-                    try {
-                        statusLabel.textContent = "VERIFICANDO MIC...";
-                        
-                        // Esto obliga al navegador a abrir la ventana emergente de "Permitir uso de micrófono"
-                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        
-                        // Si el usuario acepta, liberamos el micrófono de inmediato para que lo tome el motor de dictado
-                        stream.getTracks().forEach(track => track.stop());
-
-                        isProcessing = false;
-                        recognition.start();
-                    } catch (e) {
-                        console.error("Error al solicitar hardware:", e);
-                        statusLabel.textContent = "ACCESO DENEGADO";
-                        alert("ERROR DE SEGURIDAD: El navegador bloqueó el hardware. Recuerda que debes abrir este archivo mediante un servidor local (Live Server / localhost) o bajo un dominio HTTPS seguro para que los permisos puedan activarse.");
-                    }
+                    statusLabel.textContent = "ERROR HARDWARE";
+                    alert(`Error de hardware inesperado: ${e.message}`);
                 }
-            });
-
-            recognition.onstart = () => {
-                micBtn.classList.add('listening');
-                statusLabel.textContent = "ESCUCHANDO...";
-                textInput.placeholder = "Escuchando tu voz activamente...";
-            };
-
-            recognition.onresult = (event) => {
-                if (isProcessing) return;
-                isProcessing = true;
-                
-                micBtn.classList.remove('listening');
-                const textoEscuchado = event.results[0][0].transcript;
-                
-                textInput.value = textoEscuchado; 
-                procesarMensaje(textoEscuchado);
-                textInput.value = '';
-            };
-
-            recognition.onend = () => {
-                micBtn.classList.remove('listening');
-                textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
-                if (statusLabel.textContent === "ESCUCHANDO...") {
-                    statusLabel.textContent = "STANDBY";
-                }
-            };
-
-            recognition.onerror = (event) => {
-                micBtn.classList.remove('listening');
-                textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
-                statusLabel.textContent = "ERROR MIC";
-                console.error("Speech Recognition Error:", event.error);
-            };
+            }
         }
+    });
+
+    recognition.onstart = () => {
+        micBtn.classList.add('listening');
+        statusLabel.textContent = "ESCUCHANDO...";
+        textInput.placeholder = "Escuchando tu voz activamente...";
+    };
+
+    recognition.onresult = (event) => {
+        if (isProcessing) return;
+        isProcessing = true;
+        
+        micBtn.classList.remove('listening');
+        const textoEscuchado = event.results[0][0].transcript;
+        
+        textInput.value = textoEscuchado; 
+        procesarMensaje(textoEscuchado);
+        textInput.value = '';
+    };
+
+    recognition.onend = () => {
+        micBtn.classList.remove('listening');
+        textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
+        if (statusLabel.textContent === "ESCUCHANDO...") {
+            statusLabel.textContent = "STANDBY";
+        }
+    };
+
+    recognition.onerror = (event) => {
+        micBtn.classList.remove('listening');
+        textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
+        statusLabel.textContent = "ERROR MIC";
+        console.error("Speech Recognition Error:", event.error);
+    };
+}
 
         function appendBubble(text, sender) {
             const bubble = document.createElement('div');
