@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise AI Control Console</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-base: #080c14;
+            --bg-panel: #0f1524;
+            --bg-surface: #141c2f;
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-focus: #2563eb;
+            
+            --neon-cyan: #06b6d4;
+            --neon-emerald: #10b981;
+            --neon-alert: #ef4444;
+            
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
+            
+            --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        .console-container {
+            width: 94%;
+            max-width: 1280px;
+            height: 88vh;
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        /* PANEL IZQUIERDO: Configuración y Telemetría */
+        .sidebar-panel {
+            background-color: rgba(10, 15, 26, 0.4);
+            border-right: 1px solid var(--border-subtle);
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .brand-section h2 {
+            margin: 0 0 4px 0;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-main);
+        }
+
+        .brand-section p {
+            margin: 0;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+        }
+
+        .meta-divider {
+            height: 1px;
+            background: linear-gradient(90deg, var(--border-subtle) 0%, rgba(0,0,0,0) 100%);
+            margin: 1.5rem 0;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            flex-grow: 1;
+            margin-top: 1rem;
+        }
+
+        .control-block label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .config-bar input {
+            width: 100%;
+            box-sizing: border-box;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-main);
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-family: var(--font-mono);
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .config-bar input:focus {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        /* Telemetría de Estado de Voz */
+        .telemetry-card {
+            background-color: rgba(20, 28, 47, 0.5);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-container {
+            text-align: center;
+        }
+
+        .status-indicator {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--neon-cyan);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .mic-button {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-main);
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            font-size: 1.25rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .mic-button:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .mic-button.listening {
+            background-color: var(--neon-alert);
+            border-color: var(--neon-alert);
+            color: white;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+            animation: pulse 1.8s infinite linear;
+        }
+
+        /* PANEL DERECHO: Lienzo de Conversación Principal */
+        .main-chat-panel {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background-color: rgba(13, 19, 32, 0.2);
+        }
+
+        .chat-body {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            scroll-behavior: smooth;
+        }
+
+        .chat-body::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-body::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+        }
+
+        .bubble {
+            max-width: 70%;
+            padding: 16px 20px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            letter-spacing: 0.1px;
+            word-wrap: break-word;
+            box-sizing: border-box;
+            animation: buildUp 0.25s cubic-bezier(0.215, 0.610, 0.355, 1);
+        }
+
+        .bubble.user {
+            background-color: var(--bg-surface);
+            color: var(--text-main);
+            align-self: flex-end;
+            border: 1px solid var(--border-subtle);
+            border-bottom-right-radius: 2px;
+        }
+
+        .bubble.ai {
+            background-color: rgba(37, 99, 235, 0.07);
+            color: #e2e8f0;
+            align-self: flex-start;
+            border: 1px solid rgba(37, 99, 235, 0.2);
+            border-bottom-left-radius: 2px;
+        }
+
+        /* Barra de Entrada Inferior */
+        .chat-footer {
+            padding: 1.5rem 2rem 2rem 2rem;
+            background-color: var(--bg-panel);
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 14px;
+            width: 100%;
+            align-items: center;
+        }
+
+        .chat-input {
+            flex: 1;
+            background-color: var(--bg-base);
+            border: 1px solid var(--border-subtle);
+            color: white;
+            padding: 14px 22px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .chat-input:focus {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 1px var(--border-focus);
+        }
+
+        .send-button {
+            background-color: var(--border-focus);
+            color: white;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .send-button:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { transform: scale(1.04); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        @keyframes buildUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="console-container">
+        <div class="sidebar-panel">
+            <div class="brand-section">
+                <h2>Control Console</h2>
+                <p>Environment v2.3 // Operational</p>
+                <div class="meta-divider"></div>
+            </div>
+
+            <div class="control-group">
+                <div class="control-block">
+                    <label>Target Endpoint</label>
+                    <div class="config-bar">
+                        <input type="text" id="webhookUrl" placeholder="https://tu-instancia.n8n.cloud/...">
+                    </div>
+                </div>
+
+                <div class="control-block" style="margin-top: auto;">
+                    <label>Voice Stream Infrastructure</label>
+                    <div class="telemetry-card">
+                        <button id="micBtn" class="mic-button">🎤</button>
+                        <div class="status-container">
+                            <div id="statusLabel" class="status-indicator">STANDBY</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-chat-panel">
+            <div class="chat-body" id="chatBody">
+                <div class="bubble ai">👋 Consola inicializada. Haz clic en el micrófono del panel izquierdo para hablar; el sistema procesará y enviará tu comando de voz automáticamente al terminar.</div>
+            </div>
+
+            <div class="chat-footer">
+                <div class="input-row">
+                    <input type="text" id="textInput" class="chat-input" placeholder="Ingrese una línea de comando o consulta de datos...">
+                    <button id="sendBtn" class="send-button">➤</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audioOut" hidden></audio>
+
+    <script>
+        const webhookInput = document.getElementById('webhookUrl');
+        const chatBody = document.getElementById('chatBody');
+        const textInput = document.getElementById('textInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const micBtn = document.getElementById('micBtn');
+        const statusLabel = document.getElementById('statusLabel');
+        const audioOut = document.getElementById('audioOut');
+
+        let isProcessing = false;
+
+        async function procesarMensaje(mensaje) {
+            if (!mensaje.trim()) return;
+            const webhookUrl = webhookInput.value.trim();
+            
+            if (!webhookUrl) {
+                alert("Por favor, ingresa la URL de tu Webhook en la parte superior del panel izquierdo.");
+                return;
+            }
+
+            appendBubble(mensaje, 'user');
+            statusLabel.textContent = "Procesando...";
+
+            try {
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mensaje: mensaje })
+                });
+
+                if (response.ok) {
+                    const data = await response.json(); 
+
+                    if (data.respuestaTexto) {
+                        appendBubble(data.respuestaTexto, 'ai');
+                    }
+
+                    if (data.audio) {
+                        audioOut.src = "data:audio/mpeg;base64," + data.audio;
+                        audioOut.play().catch(e => console.error("Error al reproducir audio:", e));
+                    }
+                    
+                    statusLabel.textContent = "STANDBY";
+                } else {
+                    appendBubble("❌ Error en el servidor de automatización.", 'ai');
+                    statusLabel.textContent = "ERROR SERVIDOR";
+                }
+            } catch (error) {
+                appendBubble("❌ Error de conexión con el Webhook.", 'ai');
+                statusLabel.textContent = "ERROR RED";
+                console.error(error);
+            }
+        }
+
+        sendBtn.addEventListener('click', () => {
+            procesarMensaje(textInput.value);
+            textInput.value = '';
+        });
+
+        textInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                procesarMensaje(textInput.value);
+                textInput.value = '';
+            }
+        });
+
+        // --- SISTEMA DE DETECCIÓN CON MENÚ DE PERMISOS FORZADO ---
+        const SpeechSetup = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!SpeechSetup) {
+            statusLabel.textContent = "SISTEMA NO SOPORTADO";
+            console.warn("Este navegador no soporta la API de Reconocimiento de Voz.");
+        } else {
+            const recognition = new SpeechSetup();
+            recognition.lang = 'es-CO'; 
+            recognition.continuous = false; 
+            recognition.interimResults = false; 
+
+            // AL HACER CLIC FORZAMOS LA CONFIRMACIÓN DE HARDWARE DEL NAVEGADOR
+            micBtn.addEventListener('click', async () => {
+                if (micBtn.classList.contains('listening')) {
+                    recognition.stop();
+                } else {
+                    try {
+                        statusLabel.textContent = "VERIFICANDO MIC...";
+                        
+                        // Esto obliga al navegador a abrir la ventana emergente de "Permitir uso de micrófono"
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        
+                        // Si el usuario acepta, liberamos el micrófono de inmediato para que lo tome el motor de dictado
+                        stream.getTracks().forEach(track => track.stop());
+
+                        isProcessing = false;
+                        recognition.start();
+                    } catch (e) {
+                        console.error("Error al solicitar hardware:", e);
+                        statusLabel.textContent = "ACCESO DENEGADO";
+                        alert("ERROR DE SEGURIDAD: El navegador bloqueó el hardware. Recuerda que debes abrir este archivo mediante un servidor local (Live Server / localhost) o bajo un dominio HTTPS seguro para que los permisos puedan activarse.");
+                    }
+                }
+            });
+
+            recognition.onstart = () => {
+                micBtn.classList.add('listening');
+                statusLabel.textContent = "ESCUCHANDO...";
+                textInput.placeholder = "Escuchando tu voz activamente...";
+            };
+
+            recognition.onresult = (event) => {
+                if (isProcessing) return;
+                isProcessing = true;
+                
+                micBtn.classList.remove('listening');
+                const textoEscuchado = event.results[0][0].transcript;
+                
+                textInput.value = textoEscuchado; 
+                procesarMensaje(textoEscuchado);
+                textInput.value = '';
+            };
+
+            recognition.onend = () => {
+                micBtn.classList.remove('listening');
+                textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
+                if (statusLabel.textContent === "ESCUCHANDO...") {
+                    statusLabel.textContent = "STANDBY";
+                }
+            };
+
+            recognition.onerror = (event) => {
+                micBtn.classList.remove('listening');
+                textInput.placeholder = "Ingrese una línea de comando o consulta de datos...";
+                statusLabel.textContent = "ERROR MIC";
+                console.error("Speech Recognition Error:", event.error);
+            };
+        }
+
+        function appendBubble(text, sender) {
+            const bubble = document.createElement('div');
+            bubble.classList.add('bubble', sender);
+            bubble.textContent = text;
+            chatBody.appendChild(bubble);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+    </script>
+</body>
+</html>
